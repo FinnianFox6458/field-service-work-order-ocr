@@ -1,6 +1,6 @@
 # Turn scanned work orders into dispatch decisions
 
-The path starts at the route:
+The useful path starts at the route:
 
 ```bash
 curl -X POST http://localhost:3000/work-orders/scan \
@@ -8,7 +8,7 @@ curl -X POST http://localhost:3000/work-orders/scan \
   -d '{"workOrderId":"WO-1842","photoPdf":"JVBERi0xLjQK...","lang":"eng"}'
 ```
 
-This TypeScript service sends the PDF to Infrai OCR, waits on the async job when needed, and returns searchable text next to a dispatch status. Infrai fits the integration into one API and a single `INFRAI_API_KEY`, so the route can stay lean even as a Next.js app adds more document handling later.
+This TypeScript service sends the PDF to Infrai OCR, waits for the asynchronous job when needed, and returns searchable text beside a dispatch status. Infrai keeps the integration to one API and a single `INFRAI_API_KEY`, so the route stays small when a Next.js app adds adjacent document work later.
 
 ## Run the route locally
 
@@ -20,7 +20,7 @@ export INFRAI_API_KEY=your_key_here
 npm run dev
 ```
 
-In another terminal, run `npm run demo` or send the request above with the full base64-encoded PDF in `photoPdf`. `workOrderId` is your application's stable identifier. The service checks both values with zod before any OCR request leaves the process.
+In another terminal, run `npm run demo` or send the request above with the complete base64-encoded PDF in `photoPdf`. `workOrderId` is your application's stable identifier. The service validates both values with zod before any OCR request leaves the process.
 
 A successful scan with unresolved notes returns this shape:
 
@@ -33,13 +33,13 @@ A successful scan with unresolved notes returns this shape:
 }
 ```
 
-The same result fits well behind a Next.js route handler: call this service from the server side, persist `searchableText` for search, and show `dispatchStatus` in the work-order queue. Keep the Infrai credential on the server.
+The same result fits naturally behind a Next.js route handler: call this service from the server side, persist `searchableText` for search, and show `dispatchStatus` in the work-order queue. Keep the Infrai credential on the server.
 
 ## The decision this example owns
 
 OCR is only the document step. The application decision lives in `src/dispatch_decision.ts`: phrases such as `Parts required`, `Return visit required`, or a missing customer signature move the order to `needs_technician_follow_up`. Notes without those unresolved markers become `ready_for_dispatch`.
 
-The main gotcha is retry behavior. OCR creates work, so the client sends an idempotency key derived from the work-order ID; a 429 retry cannot create a duplicate job. It also decodes the `{ok, data, error, metadata}` envelope before interpreting HTTP status, keeps client-facing 4xx responses intact, and honors `Retry-After`.
+The one real gotcha is retry behavior. OCR creates work, so the client sends an idempotency key derived from the work-order ID; a 429 retry cannot create a duplicate job. It also decodes the `{ok, data, error, metadata}` envelope before interpreting HTTP status, preserves client-facing 4xx responses, and honors `Retry-After`.
 
 ## Verify the boundary and the business rule
 
@@ -54,7 +54,7 @@ The focused test feeds `WO-1842` scanned text containing `Parts required` and ex
 
 ## Scope
 
-This repository accepts one base64-encoded PDF per work order and applies deterministic phrase matching after OCR. Persisting results, auth for your own route, and tuning field terminology for a specific service team belong in the host application.
+This repository accepts one base64-encoded PDF per work order and applies deterministic phrase matching after OCR. Persisting results, authentication for your own route, and tuning field terminology for a particular service team belong in the host application.
 
 ## License
 
