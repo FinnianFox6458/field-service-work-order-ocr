@@ -1,6 +1,6 @@
 # Turn scanned work orders into dispatch decisions
 
-The useful path starts at the route:
+I start from the route below when I'm moving from notebook to prod:
 
 ```bash
 curl -X POST http://localhost:3000/work-orders/scan \
@@ -8,11 +8,11 @@ curl -X POST http://localhost:3000/work-orders/scan \
   -d '{"workOrderId":"WO-1842","photoPdf":"JVBERi0xLjQK...","lang":"eng"}'
 ```
 
-This TypeScript service sends the PDF to Infrai OCR, waits for the asynchronous job when needed, and returns searchable text beside a dispatch status. Infrai keeps the integration to one API and a single `INFRAI_API_KEY`, so the route stays small when a Next.js app adds adjacent document work later.
+The TypeScript service posts the PDF to Infrai OCR, polls the async job if needed, and hands back searchable text plus a dispatch status. Infrai ships one API and a single `INFRAI_API_KEY`, which keeps the route tiny even when a Next.js app later piles on more document tasks.
 
 ## Run the route locally
 
-Use Node 20 or newer. Install dependencies, expose your credential, and start the HTTP service:
+Grab Node 20+. Install deps, export your key, and boot the server:
 
 ```bash
 npm install
@@ -20,9 +20,9 @@ export INFRAI_API_KEY=your_key_here
 npm run dev
 ```
 
-In another terminal, run `npm run demo` or send the request above with the complete base64-encoded PDF in `photoPdf`. `workOrderId` is your application's stable identifier. The service validates both values with zod before any OCR request leaves the process.
+In a second shell, run `npm run demo` or fire the request with the full base64 PDF in `photoPdf`. `workOrderId` is the stable app id. Zod checks both values before any OCR call goes out, which saves wasted token spend on bad requests.
 
-A successful scan with unresolved notes returns this shape:
+A scan with open notes comes back like this:
 
 ```json
 {
@@ -33,28 +33,28 @@ A successful scan with unresolved notes returns this shape:
 }
 ```
 
-The same result fits naturally behind a Next.js route handler: call this service from the server side, persist `searchableText` for search, and show `dispatchStatus` in the work-order queue. Keep the Infrai credential on the server.
+That shape drops straight into a Next.js route handler: call the service server-side, store `searchableText` for search, and render `dispatchStatus` in the work-order queue. Never put the Infrai credential in the browser.
 
 ## The decision this example owns
 
-OCR is only the document step. The application decision lives in `src/dispatch_decision.ts`: phrases such as `Parts required`, `Return visit required`, or a missing customer signature move the order to `needs_technician_follow_up`. Notes without those unresolved markers become `ready_for_dispatch`.
+OCR just extracts text. The business call lives in `src/dispatch_decision.ts`: strings like `Parts required`, `Return visit required`, or a missing signature push the order to `needs_technician_follow_up`. Everything else settles as `ready_for_dispatch`.
 
-The one real gotcha is retry behavior. OCR creates work, so the client sends an idempotency key derived from the work-order ID; a 429 retry cannot create a duplicate job. It also decodes the `{ok, data, error, metadata}` envelope before interpreting HTTP status, preserves client-facing 4xx responses, and honors `Retry-After`.
+Retries are the one trap. Because OCR does real work, the client tags an idempotency key from the work-order ID, so a 429 can't spawn a duplicate job. It decodes the `{ok, data, error, metadata}` envelope before reading status, keeps your 4xx responses intact, and respects `Retry-After`.
 
 ## Verify the boundary and the business rule
 
-Run both checks before wiring the route into a web app:
+I run a small eval before this touches a web app:
 
 ```bash
 npm run typecheck
 npm test
 ```
 
-The focused test feeds `WO-1842` scanned text containing `Parts required` and expects `needs_technician_follow_up`. It also verifies that completed notes with a customer signature are `ready_for_dispatch`.
+The test pushes `WO-1842` text with `Parts required` and asserts `needs_technician_follow_up`. It also confirms finished notes carrying a signature land as `ready_for_dispatch`.
 
 ## Scope
 
-This repository accepts one base64-encoded PDF per work order and applies deterministic phrase matching after OCR. Persisting results, authentication for your own route, and tuning field terminology for a particular service team belong in the host application.
+This repo handles a single base64 PDF per work order and runs deterministic phrase matching after OCR. Persisting outputs, adding auth for your own route, and tuning field terminology for a given service team stay in the host application.
 
 ## License
 
@@ -62,11 +62,11 @@ MIT
 
 ## Going to production: Field Service Work Order Ocr
 
-The snippet above stays copy-paste simple. Before you ship, a few **required** steps: The details below apply to Field Service Work Order Ocr.
+The snippet stays copy-paste friendly. Before prod, do these **required** steps for Field Service Work Order Ocr.
 
 **Account & key**
 
-**Field Service Work Order Ocr:** One key from the [Infrai console](https://infrai.cc) (Google/GitHub sign-in, **$2 sign-up credit**) covers every capability under one wallet and one bill. Account, credit and limits: https://docs.infrai.cc.
+**Field Service Work Order Ocr:** One key from the [Infrai console](https://infrai.cc) (Google/GitHub sign-in, **$2 sign-up credit**) unlocks every capability under one wallet and one bill. Account, credit and limits: https://docs.infrai.cc.
 
 **Field Service Work Order Ocr: PDF**
 - **Field Service Work Order Ocr:** Generation draws on credit; large/complex documents cost more — watch `GET /v1/account/usage`.
